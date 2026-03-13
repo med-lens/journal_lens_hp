@@ -17,7 +17,7 @@
 
 | 項目 | 説明 |
 |------|------|
-| MedIF | PubMed 掲載誌の Impact Factor |
+| MedIF | Est.IF と H index から独自に合成したスコア |
 | Est.IF | SJR データから推定した IF |
 | SJR | Scimago Journal Rank のクォータイル（Q1〜Q4） |
 | H index | H 指数 |
