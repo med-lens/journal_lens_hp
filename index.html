@@ -270,6 +270,26 @@
         margin-top: 6px;
       }
 
+      /* ── フッター ── */
+      footer {
+        margin-top: 40px;
+        padding: 16px;
+        border-top: 1px solid var(--line);
+        font-size: 0.72rem;  /* 14px */
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.8;
+      }
+
+      footer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        text-decoration: underline;
+      }
+
       /* ── デスクトップ（1100px以上）でサイズを調整 ──
          モバイルは仮想980px幅で表示されることがあるため、
          768pxでは発火してしまう。1100px以上に設定することで
@@ -584,5 +604,15 @@
           </div>`;
       }
     </script>
+
+    <footer>
+      SJR・H index・引用数データは
+      <a href="https://www.scimagojr.com/journalrank.php" target="_blank" rel="noopener">
+        Scimago Journal &amp; Country Rank (SJR)
+      </a>
+      を使用しています。非商用利用。<br>
+      Powered by <a href="https://www.ncbi.nlm.nih.gov/nlmcatalog" target="_blank" rel="noopener">NLM Catalog</a>
+      &amp; <a href="https://www.scimagojr.com/" target="_blank" rel="noopener">SCImago</a>
+    </footer>
   </body>
 </html>
