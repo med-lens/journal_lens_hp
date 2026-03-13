@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Journal Lens</title>
+    <style>
+      :root {
+        --bg: #f5f2ea;
+        --ink: #2b2a28;
+        --accent: #2d6a4f;
+        --muted: #6b6a66;
+        --card: #ffffff;
+        --line: #e3ded3;
+      }
+
+      * { box-sizing: border-box; }
+
+      /* ベースフォントを20pxにする。
+         モバイルで仮想デスクトップ幅(980px)で開かれても
+         2.5倍縮小されて実質8pxになることを防ぐため大きめにしている */
+      html { font-size: 20px; }
+
+      body {
+        margin: 0;
+        font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        /* 横スクロールを出さない */
+        overflow-x: hidden;
+        width: 100%;
+      }
+
+      header {
+        padding: 20px 16px 12px;
+        background: linear-gradient(180deg, #f7f3e8 0%, #f0eadc 100%);
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 1.8rem;   /* 36px：スマホでも大きく見えるように */
+        letter-spacing: 0.02em;
+      }
+
+      .subtitle {
+        margin: 0;
+        font-size: 0.85rem;  /* 17px */
+        color: var(--muted);
+      }
+
+      main {
+        padding: 14px;
+        max-width: 900px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* 検索ボックス：縦積みにしてスマホらしく
+         入力欄が全幅→その下にボタン */
+      .search-box {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      input[type="text"] {
+        padding: 16px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        font-size: 1rem;     /* 20px */
+        background: var(--card);
+        /* flex:1 で、行並びでも列並びでも適切に伸びる */
+        flex: 1;
+        min-width: 0;        /* flexboxでの縮み防止 */
+      }
+
+      button {
+        padding: 16px 20px;
+        border: none;
+        border-radius: 12px;
+        background: var(--accent);
+        color: white;
+        font-size: 1rem;     /* 20px */
+        cursor: pointer;
+        font-weight: 600;
+        white-space: nowrap; /* 「検\n索」にならないよう折り返し禁止 */
+        flex-shrink: 0;      /* ボタンは縮めない */
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      /* ── カード ── */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+
+      .title {
+        font-size: 1rem;     /* 20px */
+        font-weight: 600;
+        margin: 0 0 4px;
+        line-height: 1.4;
+      }
+
+      /* 略称行：略称テキスト + 分野チップを同一行に横並び */
+      .abbr-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0 0 10px;
+        flex-wrap: wrap;
+      }
+
+      .abbr {
+        font-size: 0.82rem;  /* 16px */
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+
+      /* 分野タグ1個ぶんのチップ */
+      .area-chip {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 0.75rem;  /* 15px */
+        font-weight: 500;
+        line-height: 1.6;
+        white-space: nowrap;
+      }
+
+      /* ハッシュで選ぶ8色パレット（背景色・文字色・枠色） */
+      .ac0 { background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; }
+      .ac1 { background:#e3f2fd; color:#0d47a1; border:1px solid #90caf9; }
+      .ac2 { background:#ede7f6; color:#311b92; border:1px solid #b39ddb; }
+      .ac3 { background:#fff3e0; color:#e65100; border:1px solid #ffcc80; }
+      .ac4 { background:#fce4ec; color:#880e4f; border:1px solid #f48fb1; }
+      .ac5 { background:#e0f7fa; color:#006064; border:1px solid #80deea; }
+      .ac6 { background:#fff8e1; color:#f57f17; border:1px solid #ffe082; }
+      .ac7 { background:#e8eaf6; color:#1a237e; border:1px solid #9fa8da; }
+
+      /* 数値グリッド：常に2列（デスクトップでも2列で十分） */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        font-size: 0.9rem;   /* 18px */
+        align-items: center;
+      }
+
+      .label {
+        color: var(--muted);
+        margin-right: 4px;
+        font-size: 0.75rem;  /* 15px */
+      }
+
+      /* ── SJR クォータイルバッジ ── */
+      .sjr-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 0.82rem;  /* 16px */
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        line-height: 1.6;
+      }
+      /* Q1: エメラルドグリーン */
+      .sjr-q1 { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+      /* Q2: スカイブルー */
+      .sjr-q2 { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+      /* Q3: アンバー */
+      .sjr-q3 { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+      /* Q4: ローズ */
+      .sjr-q4 { background: #fce7f3; color: #9d174d; border: 1px solid #f9a8d4; }
+      /* 未設定 */
+      .sjr-none { color: var(--muted); font-size: 12px; }
+
+      /* ── MedIF カラーチップ ── */
+      .medif-value {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;   /* 18px */
+      }
+      /* 0〜30: ライトグレー（低め） */
+      .medif-low  { background: #f3f4f6; color: #374151; }
+      /* 30〜60: ライトブルー（中程度） */
+      .medif-mid  { background: #dbeafe; color: #1e40af; }
+      /* 60〜90: ライトグリーン（高め） */
+      .medif-high { background: #d1fae5; color: #065f46; }
+      /* 90〜: ゴールド（トップジャーナル） */
+      .medif-top  { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+
+      /* ── デスクトップ（1100px以上）でサイズを調整 ──
+         モバイルは仮想980px幅で表示されることがあるため、
+         768pxでは発火してしまう。1100px以上に設定することで
+         モバイルがPC用スタイルになるのを防ぐ。 */
+      @media (min-width: 1100px) {
+        html { font-size: 16px; }  /* PC用ベースフォント */
+
+        h1 { font-size: 1.5rem; }  /* 24px */
+
+        /* 検索ボックスを横並び（入力+ボタン）に */
+        .search-box { flex-direction: row; }
+        input[type="text"] { padding: 12px 14px; }
+        button { padding: 12px 20px; font-size: 0.95rem; }
+
+        /* PC幅なら4列グリッドに */
+        .grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Journal Lens</h1>
+      <p class="subtitle">医学誌検索（AND検索 / MedIF降順）</p>
+    </header>
+    <main>
+      <div class="search-box">
+        <input id="query" type="text" placeholder="例: plastic surgery" />
+        <button id="searchBtn">検索</button>
+      </div>
+      <div class="meta" id="status">検索語を入れてね。</div>
+      <div id="results"></div>
+    </main>
+
+    <script>
+      // ブラウザに全データを保持するで！
+      // 配列の並び：[JournalTitle, MedAbbr, MedIF, PseudoIF, SJR, HIndex, Areas]
+      let masterData = [];
+      let isLoaded = false;
+
+      const queryEl = document.getElementById("query");
+      const searchBtn = document.getElementById("searchBtn");
+      const statusEl = document.getElementById("status");
+      const resultsEl = document.getElementById("results");
+
+      // 初回ロード：データを小分けにして持ってくる（ストリーミング方式）
+      window.onload = () => {
+        loadDataStep(0);
+      };
+
+      function loadDataStep(offset) {
+        const chunkSize = 2000; // 2000 件ずつ取得
+        statusEl.textContent = `読み込み中… (${masterData.length.toLocaleString()} 件完了)`;
+
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res && res.ok) {
+              masterData = masterData.concat(res.data);
+              isLoaded = true;
+
+              const progress = res.totalCount > 0
+                ? Math.round((masterData.length / res.totalCount) * 100) : 0;
+              statusEl.textContent =
+                `読み込み中… ${progress}% (${masterData.length.toLocaleString()} / ${res.totalCount.toLocaleString()} 件)`;
+
+              if (res.isLast) {
+                statusEl.textContent = `完了！全 ${masterData.length.toLocaleString()} 件読み込んだで。`;
+              } else {
+                loadDataStep(offset + chunkSize);
+              }
+            } else {
+              const errMsg = res ? res.error : "不明な空レスポンス";
+              statusEl.textContent = `エラーで止まったわ: ${errMsg} (F5で再試行して)`;
+            }
+          })
+          .withFailureHandler(err => {
+            console.error("GAS Error:", err);
+            statusEl.textContent =
+              `通信エラー発生！ネットかGASの限界かも。しばらく待ってF5してみてな。 (Error: ${err.message || err})`;
+          })
+          .getDataChunk(offset, chunkSize);
+      }
+
+      let debounceTimer = null;
+      queryEl.addEventListener("input", () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runSearch, 200);
+      });
+      searchBtn.addEventListener("click", runSearch);
+
+      function runSearch() {
+        if (!isLoaded) {
+          statusEl.textContent = "まだ準備中やで！";
+          return;
+        }
+
+        const rawQuery = queryEl.value.trim().toLowerCase();
+        if (!rawQuery) {
+          statusEl.textContent = "検索語を入れてね。";
+          resultsEl.innerHTML = "";
+          return;
+        }
+
+        // 全角スペースも半角扱いにして、AND検索用に単語分割
+        const terms = rawQuery.replace(/　/g, " ").split(/\s+/).filter(t => t.length > 0);
+        statusEl.textContent = "検索中…";
+
+        // メモリ上でフィルタリング（row[0]=タイトル, row[1]=略称で検索）
+        const matched = masterData.filter(row => {
+          const haystack = (row[0] + " " + row[1]).toLowerCase();
+          return terms.every(t => haystack.indexOf(t) !== -1);
+        });
+
+        // MedIF 降順ソート（nullは最後に）
+        matched.sort((a, b) => {
+          const av = (a[2] !== null && isFinite(a[2])) ? a[2] : -Infinity;
+          const bv = (b[2] !== null && isFinite(b[2])) ? b[2] : -Infinity;
+          return bv - av || a[0].localeCompare(b[0]);
+        });
+
+        renderResults(matched, rawQuery, terms);
+      }
+
+      function renderResults(list, query, terms) {
+        if (list.length === 0) {
+          statusEl.textContent = `該当なし。検索語="${query}" / 単語数=${terms.length}`;
+          resultsEl.innerHTML = "";
+          return;
+        }
+
+        statusEl.textContent = `${list.length.toLocaleString()} 件ヒット（表示は上位500件まで）`;
+
+        // 大量だとブラウザが重くなるので上位500件のみ表示
+        const displayList = list.slice(0, 500);
+        resultsEl.innerHTML = displayList.map(row => toCardHtml({
+          JournalTitle: row[0],
+          MedAbbr: row[1],
+          MedIF: row[2],
+          PseudoIF: row[3],
+          SJRBestQuartile: row[4],
+          HIndex: row[5],
+          Areas: row[6]
+        })).join("");
+      }
+
+      function handleError(err) {
+        statusEl.textContent = "エラーが起きたけえ、シート名や列名を確認してね。";
+        resultsEl.innerHTML = "";
+        console.error(err);
+      }
+
+      // ── XSS 対策 ──
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;").replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      // 数値を表示文字列に変換（null/NaN → "-"）
+      function fmtNumber(n) {
+        if (n === null || n === undefined || Number.isNaN(Number(n))) return "-";
+        return Number(n).toString();
+      }
+
+      // ── SJR クォータイルバッジ HTML を生成 ──
+      function sjrBadgeHtml(sjr) {
+        const s = String(sjr || "").trim().toUpperCase();
+        if (!s) return `<span class="sjr-none">-</span>`;
+
+        // Q1/Q2/Q3/Q4 に応じてクラスを変える
+        let cls = "sjr-none";
+        if (s === "Q1") cls = "sjr-q1";
+        else if (s === "Q2") cls = "sjr-q2";
+        else if (s === "Q3") cls = "sjr-q3";
+        else if (s === "Q4") cls = "sjr-q4";
+        else cls = "sjr-none"; // 例外値（"—"など）もここで処理
+
+        return `<span class="sjr-badge ${cls}">${escapeHtml(s)}</span>`;
+      }
+
+      // ── MedIF の値に応じて色付きチップ HTML を生成 ──
+      function medifHtml(n) {
+        if (n === null || n === undefined || Number.isNaN(Number(n))) {
+          return `<span style="color:var(--muted)">-</span>`;
+        }
+        const val = Number(n);
+        let cls;
+        if      (val >= 90) cls = "medif-top";   // 90以上：ゴールド
+        else if (val >= 60) cls = "medif-high";  // 60〜89：グリーン
+        else if (val >= 30) cls = "medif-mid";   // 30〜59：ブルー
+        else                cls = "medif-low";   // 0〜29：グレー
+
+        return `<span class="medif-value ${cls}">${val}</span>`;
+      }
+
+      // ── エリア名を8色にハッシュして .ac0〜.ac7 クラスを返す ──
+      // 同じ分野名は常に同じ色になるよ
+      function areaColorClass(name) {
+        let h = 0;
+        for (let i = 0; i < name.length; i++) {
+          h = (h * 31 + name.charCodeAt(i)) >>> 0; // 符号なし32bit整数で計算
+        }
+        return "ac" + (h % 8);
+      }
+
+      // Areas文字列（"Engineering; Materials Science"など）を
+      // チップのHTML断片（複数）に変換して返す（div不要、abbr-rowに直接入れる）
+      function areaChipsHtml(areasStr) {
+        if (!areasStr) return "";
+        return areasStr.split(";")
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
+          .map(s => `<span class="area-chip ${areaColorClass(s)}">${escapeHtml(s)}</span>`)
+          .join("");
+      }
+
+      // ── カード1枚分のHTMLを生成 ──
+      function toCardHtml(item) {
+        const title  = escapeHtml(item.JournalTitle || "");
+        const abbr   = escapeHtml(item.MedAbbr || "");
+        const pseudo = fmtNumber(item.PseudoIF);
+        const hindex = fmtNumber(item.HIndex);
+
+        // 略称と分野チップを同じ abbr-row に並べる
+        // flex-wrap:wrap なので画面が狭ければ自然に折り返す
+        return `
+          <div class="card">
+            <p class="title">${title}</p>
+            <div class="abbr-row">
+              <span class="abbr">${abbr}</span>
+              ${areaChipsHtml(item.Areas)}
+            </div>
+            <div class="grid">
+              <div><span class="label">MedIF</span>${medifHtml(item.MedIF)}</div>
+              <div><span class="label">Est.IF</span>${pseudo}</div>
+              <div><span class="label">SJR</span>${sjrBadgeHtml(item.SJRBestQuartile)}</div>
+              <div><span class="label">H index</span>${hindex}</div>
+            </div>
+          </div>`;
+      }
+    </script>
+  </body>
+</html>
