@@ -205,6 +205,50 @@
       /* 90〜: ゴールド（トップジャーナル） */
       .medif-top  { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
 
+      /* ── 分野フィルター ── */
+      .area-filter {
+        margin-bottom: 12px;
+      }
+
+      .filter-label {
+        font-size: 0.78rem;  /* 15px */
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+
+      /* チェックボックスを非表示にして、ラベル全体をボタン風にする */
+      .area-checkboxes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .area-check-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 12px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        font-size: 0.78rem;  /* 15px */
+        cursor: pointer;
+        background: var(--card);
+        user-select: none;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      /* チェック済み → アクセントカラーで塗りつぶす */
+      .area-check-label:has(input:checked) {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      /* チェックボックス本体は見せない */
+      .area-check-label input {
+        display: none;
+      }
+
       /* ── デスクトップ（1100px以上）でサイズを調整 ──
          モバイルは仮想980px幅で表示されることがあるため、
          768pxでは発火してしまう。1100px以上に設定することで
@@ -237,6 +281,12 @@
         <input id="query" type="text" placeholder="例: plastic surgery" />
         <button id="searchBtn">検索</button>
       </div>
+      <!-- 分野フィルター（データ読み込み後に自動生成） -->
+      <div class="area-filter" id="areaFilter" style="display:none">
+        <p class="filter-label">分野フィルター（複数チェック → OR検索）</p>
+        <div class="area-checkboxes" id="areaCheckboxes"></div>
+      </div>
+
       <div class="meta" id="status">検索語を入れてね。</div>
       <div id="results"></div>
     </main>
@@ -268,6 +318,9 @@
             masterData = data;
             isLoaded = true;
             statusEl.textContent = `完了！全 ${masterData.length.toLocaleString()} 件読み込んだで。`;
+
+            // データが揃ったら分野フィルターを構築する
+            buildAreaFilters();
           })
           .catch(err => {
             // ネットエラー・パースエラーなどをまとめてここで処理
@@ -290,21 +343,41 @@
         }
 
         const rawQuery = queryEl.value.trim().toLowerCase();
-        if (!rawQuery) {
+
+        // チェックされている分野名を小文字で取得
+        const checkedAreas = [...document.querySelectorAll(".area-cb:checked")]
+          .map(cb => cb.value.toLowerCase());
+
+        // 検索語も分野フィルターもない場合は何も表示しない
+        if (!rawQuery && checkedAreas.length === 0) {
           statusEl.textContent = "検索語を入れてね。";
           resultsEl.innerHTML = "";
           return;
         }
 
         // 全角スペースも半角扱いにして、AND検索用に単語分割
-        const terms = rawQuery.replace(/　/g, " ").split(/\s+/).filter(t => t.length > 0);
+        // クエリが空の場合は terms を空配列にする（分野フィルターのみで絞る）
+        const terms = rawQuery
+          ? rawQuery.replace(/　/g, " ").split(/\s+/).filter(t => t.length > 0)
+          : [];
         statusEl.textContent = "検索中…";
 
-        // メモリ上でフィルタリング（row[0]=タイトル, row[1]=略称で検索）
-        const matched = masterData.filter(row => {
-          const haystack = (row[0] + " " + row[1]).toLowerCase();
-          return terms.every(t => haystack.indexOf(t) !== -1);
-        });
+        // ① テキスト検索（terms がある場合のみ、row[0]=タイトル, row[1]=略称で検索）
+        let matched = terms.length > 0
+          ? masterData.filter(row => {
+              const haystack = (row[0] + " " + row[1]).toLowerCase();
+              return terms.every(t => haystack.indexOf(t) !== -1);
+            })
+          : masterData.slice(); // termsなし → 全件を対象にする
+
+        // ② 分野フィルター（チェックがある場合のみ追加で絞り込む）
+        // OR 検索：チェックした分野のどれかが Areas に含まれていれば OK
+        if (checkedAreas.length > 0) {
+          matched = matched.filter(row => {
+            const areas = (row[6] || "").toLowerCase();
+            return checkedAreas.some(a => areas.includes(a));
+          });
+        }
 
         // MedIF 降順ソート（nullは最後に）
         matched.sort((a, b) => {
@@ -314,6 +387,39 @@
         });
 
         renderResults(matched, rawQuery, terms);
+      }
+
+      // ── 分野フィルターのチェックボックスを動的に生成 ──
+      function buildAreaFilters() {
+        // 全データから Areas の出現頻度を集計する
+        const countMap = {};
+        masterData.forEach(row => {
+          const areas = row[6]; // "Medicine; Nursing" のようなセミコロン区切り文字列
+          if (!areas) return;
+          areas.split(";").forEach(a => {
+            const name = a.trim();
+            if (name) countMap[name] = (countMap[name] || 0) + 1;
+          });
+        });
+
+        // 頻度が多い順に並べ替え、上位20件だけ表示する
+        const topAreas = Object.entries(countMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 20)
+          .map(([name]) => name);
+
+        // チェックボックスの HTML を生成して挿入する
+        const container = document.getElementById("areaCheckboxes");
+        container.innerHTML = topAreas.map(name => `
+          <label class="area-check-label">
+            <input type="checkbox" value="${escapeHtml(name)}" class="area-cb"
+                   onchange="runSearch()">
+            ${escapeHtml(name)}
+          </label>
+        `).join("");
+
+        // フィルターエリアを表示する（最初は非表示にしていた）
+        document.getElementById("areaFilter").style.display = "";
       }
 
       function renderResults(list, query, terms) {
