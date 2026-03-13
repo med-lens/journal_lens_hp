@@ -252,43 +252,29 @@
       const statusEl = document.getElementById("status");
       const resultsEl = document.getElementById("results");
 
-      // 初回ロード：データを小分けにして持ってくる（ストリーミング方式）
+      // 初回ロード：data.json を fetch で一括取得する（GitHub Pages 用）
+      // ローカルで試す場合は `python -m http.server` 等でサーバを立ててね。
       window.onload = () => {
-        loadDataStep(0);
+        statusEl.textContent = "読み込み中…";
+
+        fetch("data.json")
+          .then(res => {
+            // HTTP エラー（404 など）はここでキャッチ
+            if (!res.ok) throw new Error(`HTTP ${res.status}: data.json が見つからないわ`);
+            return res.json(); // JSON をパースして配列を返す
+          })
+          .then(data => {
+            // パース成功 → masterData にセット
+            masterData = data;
+            isLoaded = true;
+            statusEl.textContent = `完了！全 ${masterData.length.toLocaleString()} 件読み込んだで。`;
+          })
+          .catch(err => {
+            // ネットエラー・パースエラーなどをまとめてここで処理
+            console.error("fetch error:", err);
+            statusEl.textContent = `読み込みエラー: ${err.message}（data.json があるか確認してな）`;
+          });
       };
-
-      function loadDataStep(offset) {
-        const chunkSize = 2000; // 2000 件ずつ取得
-        statusEl.textContent = `読み込み中… (${masterData.length.toLocaleString()} 件完了)`;
-
-        google.script.run
-          .withSuccessHandler(res => {
-            if (res && res.ok) {
-              masterData = masterData.concat(res.data);
-              isLoaded = true;
-
-              const progress = res.totalCount > 0
-                ? Math.round((masterData.length / res.totalCount) * 100) : 0;
-              statusEl.textContent =
-                `読み込み中… ${progress}% (${masterData.length.toLocaleString()} / ${res.totalCount.toLocaleString()} 件)`;
-
-              if (res.isLast) {
-                statusEl.textContent = `完了！全 ${masterData.length.toLocaleString()} 件読み込んだで。`;
-              } else {
-                loadDataStep(offset + chunkSize);
-              }
-            } else {
-              const errMsg = res ? res.error : "不明な空レスポンス";
-              statusEl.textContent = `エラーで止まったわ: ${errMsg} (F5で再試行して)`;
-            }
-          })
-          .withFailureHandler(err => {
-            console.error("GAS Error:", err);
-            statusEl.textContent =
-              `通信エラー発生！ネットかGASの限界かも。しばらく待ってF5してみてな。 (Error: ${err.message || err})`;
-          })
-          .getDataChunk(offset, chunkSize);
-      }
 
       let debounceTimer = null;
       queryEl.addEventListener("input", () => {
@@ -350,12 +336,6 @@
           HIndex: row[5],
           Areas: row[6]
         })).join("");
-      }
-
-      function handleError(err) {
-        statusEl.textContent = "エラーが起きたけえ、シート名や列名を確認してね。";
-        resultsEl.innerHTML = "";
-        console.error(err);
       }
 
       // ── XSS 対策 ──
