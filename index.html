@@ -409,10 +409,12 @@
           .map(([name]) => name);
 
         // チェックボックスの HTML を生成して挿入する
+        // "Medicine" だけデフォルトでチェック済みにする
         const container = document.getElementById("areaCheckboxes");
         container.innerHTML = topAreas.map(name => `
           <label class="area-check-label">
             <input type="checkbox" value="${escapeHtml(name)}" class="area-cb"
+                   ${name === "Medicine" ? "checked" : ""}
                    onchange="runSearch()">
             ${escapeHtml(name)}
           </label>
@@ -420,6 +422,9 @@
 
         // フィルターエリアを表示する（最初は非表示にしていた）
         document.getElementById("areaFilter").style.display = "";
+
+        // Medicine がチェック済みの状態で初回検索を実行する
+        runSearch();
       }
 
       function renderResults(list, query, terms) {
