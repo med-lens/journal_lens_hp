@@ -249,6 +249,27 @@
         display: none;
       }
 
+      /* 「他の分野▼」展開ボタン */
+      .area-more-btn {
+        padding: 5px 12px;
+        border: 1px dashed var(--line);
+        border-radius: 20px;
+        font-size: 0.78rem;
+        cursor: pointer;
+        background: transparent;
+        color: var(--muted);
+        font-weight: normal;
+      }
+
+      /* 展開時の残りチップをまとめるコンテナ */
+      #areaMore {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;   /* flex-wrap で改行させるために全幅を取る */
+        margin-top: 6px;
+      }
+
       /* ── デスクトップ（1100px以上）でサイズを調整 ──
          モバイルは仮想980px幅で表示されることがあるため、
          768pxでは発火してしまう。1100px以上に設定することで
@@ -408,23 +429,46 @@
           .slice(0, 20)
           .map(([name]) => name);
 
-        // チェックボックスの HTML を生成して挿入する
-        // "Medicine" だけデフォルトでチェック済みにする
-        const container = document.getElementById("areaCheckboxes");
-        container.innerHTML = topAreas.map(name => `
+        // チップ HTML を1件分生成するヘルパー
+        const chipHtml = name => `
           <label class="area-check-label">
             <input type="checkbox" value="${escapeHtml(name)}" class="area-cb"
                    ${name === "Medicine" ? "checked" : ""}
                    onchange="runSearch()">
             ${escapeHtml(name)}
-          </label>
-        `).join("");
+          </label>`;
 
-        // フィルターエリアを表示する（最初は非表示にしていた）
+        // Medicine を先頭に固定し、残りを後ろに並べる
+        const medicine = topAreas.find(n => n === "Medicine");
+        const others   = topAreas.filter(n => n !== "Medicine");
+
+        const container = document.getElementById("areaCheckboxes");
+        container.innerHTML =
+          // ① Medicine チップ（常に表示）
+          (medicine ? chipHtml(medicine) : "") +
+          // ② 展開ボタン（Medicine 以外が存在する場合のみ）
+          (others.length > 0
+            ? `<button class="area-more-btn" id="areaMoreBtn"
+                       onclick="toggleAreaExpand()">他の分野 ▼</button>
+               <div id="areaMore" style="display:none">
+                 ${others.map(chipHtml).join("")}
+               </div>`
+            : "");
+
+        // フィルターエリアを表示する
         document.getElementById("areaFilter").style.display = "";
 
         // Medicine がチェック済みの状態で初回検索を実行する
         runSearch();
+      }
+
+      // 「他の分野▼」ボタンで残りのチップを開閉する
+      function toggleAreaExpand() {
+        const more = document.getElementById("areaMore");
+        const btn  = document.getElementById("areaMoreBtn");
+        const isOpen = more.style.display !== "none";
+        more.style.display = isOpen ? "none" : "";         // 開閉切り替え
+        btn.textContent    = isOpen ? "他の分野 ▼" : "閉じる ▲";
       }
 
       function renderResults(list, query, terms) {
